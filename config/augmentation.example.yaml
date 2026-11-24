@@ -1,0 +1,24 @@
+# HIPÓTESES ILUSTRATIVAS para inspeção visual, não parâmetros validados da esteira.
+# O tamanho abaixo é apenas da visualização; ainda não escolhemos a entrada da rede.
+preview_size: 320
+seed: 2027
+isolated:
+  brightness:
+    brightness: 15.0  # deslocamento de intensidade, antes do clipping em [0,255]
+  contrast:
+    contrast: 0.9
+  rotation:
+    angle: 5.0  # graus
+  translation:
+    tx: 0.03   # fração da largura da entrada
+    ty: -0.02  # fração da altura da entrada
+  scale:
+    scale: 0.95
+random_examples: 3
+random_ranges:
+  angle: [-5.0, 5.0]
+  scale: [0.95, 1.05]
+  tx: [-0.03, 0.03]
+  ty: [-0.03, 0.03]
+  contrast: [0.9, 1.1]
+  brightness: [-15.0, 15.0]

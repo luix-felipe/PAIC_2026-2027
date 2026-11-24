@@ -1,0 +1,29 @@
+# Calibração exploratória REAL destas quatro fotos; não usar em outras capturas.
+# Coordenadas [x0, y0, x1, y1], pixels do frame original orientado pelo EXIF.
+# Limites superiores exclusivos. Os recortes incluem margem ao redor do símbolo.
+# Nenhuma destas ROIs é fornecida por IA.
+dataset: ../Datasets/Blanks
+samples:
+  - image: 20261112_084042.jpg
+    frame_size: [4000, 3000]  # largura, altura
+    rois:
+      - [1000, 1122, 1144, 1267]
+      - [2967, 1667, 3133, 1844]
+  - image: 20261112_084324.jpg
+    frame_size: [6120, 8160]
+    rois:
+      - [3921, 4284, 4216, 4601]
+      - [4193, 4148, 4511, 4488]
+      - [4896, 4669, 5213, 5009]
+  - image: 20261112_084419.jpg
+    frame_size: [6120, 8160]
+    rois:
+      - [2833, 3513, 3083, 3763]
+      - [2947, 4715, 3219, 4987]
+      - [2403, 3309, 2561, 3513]
+  - image: 20261112_084440.jpg
+    frame_size: [6120, 8160]
+    rois:
+      - [3355, 3083, 3649, 3400]
+      - [2561, 4987, 2879, 5327]
+

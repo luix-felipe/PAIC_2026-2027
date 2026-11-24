@@ -1,0 +1,7 @@
+# Ambiente de PC deste ensaio. Compatibilidade na Raspberry Pi 3 ainda não validada.
+numpy==2.4.3
+opencv-python==4.13.0.92
+PyYAML==6.0.3
+zxing-cpp==3.1.1
+pytest==9.2.0
+

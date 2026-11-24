@@ -1,0 +1,345 @@
+# AGENTS.md — Inspeção visual e leitura de Data Matrix em esteira
+
+## 1. Objetivo do projeto
+
+Desenvolver um sistema de visão computacional embarcado, inicialmente em uma **Raspberry Pi 3**, para identificar o modelo de uma placa/produto que passa por uma esteira, localizar a região conhecida de seu **Data Matrix**, decodificar o conteúdo, contabilizar a passagem sem duplicidade e enviar um evento para uma API.
+
+O projeto combina **um modelo leve de visão computacional** com **processamento determinístico de imagem**. Não usar uma rede neural para tarefas que possam ser resolvidas com geometria simples e uma biblioteca de decodificação.
+
+### Premissas confirmadas
+
+- Os produtos estão **em movimento sobre uma esteira**.
+- Cada modelo de produto mantém **orientação previsível e fixa** ao passar pela câmera.
+- A posição do Data Matrix é **conhecida e específica por modelo**.
+- A primeira plataforma embarcada será uma **Raspberry Pi 3**, sem presumir acelerador de IA externo.
+- O objetivo é identificar a placa, contar a passagem, ler o Data Matrix e transmitir o resultado para uma API.
+
+### Variáveis ainda não definidas
+
+Velocidade da esteira, intervalo mínimo entre produtos, modelo exato da Raspberry Pi 3, tipo/resolução de câmera, iluminação, quantidade de modelos, dimensão física dos Data Matrix, interface do sensor de presença e contrato da API.
+
+**Não inventar valores para essas variáveis.** Torná-las configuráveis; usar valores de exemplo apenas se forem identificados explicitamente como ilustrativos.
+
+## 2. Arquitetura de referência
+
+```text
+Câmera / disparo por sensor (quando disponível)
+                   |
+                   v
+          Captura do frame original
+                   |
+          +--------+---------+
+          |                  |
+          v                  |
+    Pré-processamento         |
+   (resize/normalização)      |
+          |                  |
+          v                  |
+ Inferência TinyML/Edge       |
+ (classe + centro da placa)   |
+          |                  |
+          v                  |
+ Consulta à configuração      |
+   de ROI por modelo          |
+          |                  |
+          +--------+---------+
+                   v
+        ROI no frame ORIGINAL
+                   |
+                   v
+          Decodificação ECC200
+             (ZXing-C++)
+                   |
+                   v
+     Validação e evento único
+                   |
+                   v
+        Fila local de entrega
+                   |
+                   v
+           API HTTP/JSON
+```
+
+### Regra central de qualidade de imagem
+
+O redimensionamento serve **somente para a entrada do modelo**. O recorte para decodificação deve ser extraído do **frame original**, preservando a resolução dos módulos do Data Matrix e a *quiet zone*. Nunca decodificar automaticamente a partir da imagem reduzida de inferência.
+
+### Segmentação versus ROI
+
+O termo “segmentação” usado no escopo do projeto refere-se inicialmente a **recorte de região de interesse (ROI)**, e **não a segmentação semântica/pixel a pixel**. Não introduzir máscaras ou uma segunda rede neural sem evidência de que a ROI geométrica é insuficiente.
+
+## 3. Stack tecnológica preferencial
+
+| Função | Escolha inicial | Observação |
+|---|---|---|
+| Plataforma | Raspberry Pi 3 | CPU, memória e taxa real devem ser medidas |
+| Linguagem da aplicação | Python | Prototipagem e integração; otimizar apenas com medição |
+| Treinamento de modelo | SSCMA | Executar em PC/servidor, não na Pi |
+| Modelo inicial | FOMO | Classe e centro aproximado; não retorna bounding box completa |
+| Alternativa de modelo | RTMDet compacto ou classificador leve | Avaliar quando FOMO não for suficiente |
+| Runtime embarcado | TensorFlow Lite / LiteRT | Confirmar compatibilidade da exportação do modelo escolhido |
+| Imagens e ROI | OpenCV + NumPy | Operações determinísticas |
+| Data Matrix | ZXing-C++ | Preferência; `libdmtx` é alternativa técnica |
+| API | HTTP/JSON | Cliente isolado do pipeline visual |
+| Configuração | YAML | Modelos, ROI, parâmetros e thresholds |
+| Testes | pytest | Mockar câmera, modelo, decodificador e rede |
+
+Não presumir que um modelo exportado pelo SSCMA rode na Raspberry Pi 3 sem conversão/validação. Registrar dependências, versões testadas, formato de entrada/saída, quantização e operações suportadas pelo runtime. O treinamento é feito fora do dispositivo; a Pi realiza **apenas inferência**.
+
+## 4. Contratos entre módulos
+
+Cada componente deve possuir uma interface clara e independente do hardware.
+
+### 4.1 Aquisição
+
+Entrada: câmera ou fonte de vídeo; opcionalmente, trigger de sensor fotoelétrico.
+
+Saída: `frame_original`, `captured_at`, `capture_id` e metadados da câmera.
+
+- Não bloquear indefinidamente quando uma captura falhar.
+- Preservar o frame original até o término da extração de ROI.
+- A primeira implementação deve aceitar também imagens e vídeos gravados, permitindo desenvolvimento sem a câmera física.
+
+### 4.2 Inferência
+
+Entrada: cópia pré-processada do frame.
+
+Saída mínima: `model_id`, `confidence`, `center_x`, `center_y` e informações da transformação de coordenadas.
+
+- FOMO retorna **centro aproximado**, não dimensões reais de caixa delimitadora.
+- Converter as coordenadas corretamente para o frame original, respeitando escala, crop, padding e *letterboxing*.
+- Se a confiança for insuficiente ou o modelo for desconhecido, registrar estado explícito; não inferir uma ROI arbitrária.
+- Caso um classificador substitua FOMO em uma estação com placa centralizada, documentar a hipótese de posicionamento fixo.
+
+### 4.3 Localização da ROI
+
+Entrada: `frame_original`, `model_id`, centro detectado e configuração de ROI.
+
+Saída: imagem de ROI e suas coordenadas no frame original.
+
+- Cada modelo possui uma ROI calibrada, expressa em deslocamentos a partir do centro **ou** coordenadas normalizadas; escolher uma convenção e documentá-la.
+- Validar os limites do frame antes de fazer o recorte. **Não truncar silenciosamente** códigos cortados.
+- Preservar margem ao redor do Data Matrix, inclusive *quiet zone*.
+- Separar configuração geométrica de lógica de decodificação.
+- Se houver variação relevante de escala, não usar offsets fixos em pixels sem calibração; considerar ROI relativa à caixa do objeto ou calibração da câmera.
+
+Exemplo **ilustrativo** de configuração YAML:
+
+```yaml
+models:
+  placa_A:
+    roi:
+      reference: detection_center
+      dx_px: 90
+      dy_px: -30
+      width_px: 110
+      height_px: 110
+  placa_B:
+    roi:
+      reference: detection_center
+      dx_px: -75
+      dy_px: 45
+      width_px: 100
+      height_px: 100
+```
+
+### 4.4 Decodificação
+
+Entrada: ROI em resolução original.
+
+Saída: `decoded_text`/`decoded_bytes`, status de leitura e, quando houver, metadados do símbolo.
+
+- Priorizar **Data Matrix ECC200**.
+- Encapsular ZXing-C++ atrás de uma interface que permita trocar por libdmtx sem alterar o restante da aplicação.
+- Não inventar conteúdo quando a leitura falhar.
+- Possíveis melhorias (contraste, binarização, nova captura) devem ser opcionais, mensuradas e configuráveis.
+- Validar o conteúdo conforme as regras reais do produto somente quando essas regras forem disponibilizadas.
+
+### 4.5 Contagem e ciclo de vida do produto
+
+O sistema deve criar **um único evento por passagem física**. Não contar o mesmo produto novamente por aparecer em vários frames.
+
+Estados sugeridos:
+
+```text
+DETECTADO -> CAPTURADO -> CLASSIFICADO -> DECODIFICADO -> REGISTRADO
+                                      \-> FALHA_LEITURA -> REGISTRADO
+                    \-> FALHA_CLASSIFICACAO -> REGISTRADO
+```
+
+- Contagem física e contagem de leituras bem-sucedidas são métricas distintas.
+- Quando disponível, preferir o sensor fotoelétrico como fonte de eventos de passagem, com debounce e associação entre trigger e captura.
+- Sem sensor, implementar lógica de rastreamento/linha virtual que seja testável; nunca incrementar contador a cada inferência por frame.
+- Não presumir que o conteúdo do Data Matrix é único entre produtos.
+- A lógica deve tolerar falhas de captura, classificação e leitura sem perder o registro da passagem detectada.
+
+### 4.6 API e persistência
+
+- Enviar registros com HTTP/JSON através de um módulo isolado, com timeout, retentativas limitadas e backoff.
+- A captura e a inferência **não podem depender da disponibilidade da API**.
+- Usar fila local persistente (por exemplo, SQLite) para entregas pendentes quando necessário.
+- Gerar `event_id` único por passagem e permitir idempotência no servidor.
+- Não incluir chaves, tokens ou URLs privadas hardcoded no repositório.
+- O esquema exato da API é **pendente de definição**; usar o payload a seguir apenas como contrato provisório:
+
+```json
+{
+  "event_id": "station-01-000184",
+  "device_id": "raspberry-pi-3",
+  "model_id": "placa_A",
+  "datamatrix": "ABC123456789",
+  "status": "LEITURA_OK",
+  "captured_at": "2026-11-23T13:00:00-04:00"
+}
+```
+
+Em caso de falha de leitura, `datamatrix` deve ser `null`, não uma string inventada.
+
+## 5. Estrutura sugerida do repositório
+
+```text
+.
+├── AGENTS.md
+├── README.md
+├── pyproject.toml
+├── config/
+│   ├── example.yaml
+│   └── roi_models.example.yaml
+├── models/
+│   └── README.md              # origem, versão, licença e formato dos modelos
+├── src/
+│   └── inspection/
+│       ├── capture.py         # câmera, vídeo e imagens
+│       ├── preprocessing.py   # resize, normalização, coordenadas
+│       ├── detector.py        # interface TFLite e saídas do modelo
+│       ├── roi.py             # calibração e recorte
+│       ├── decoder.py         # ZXing-C++ / libdmtx
+│       ├── tracking.py        # eventos e deduplicação
+│       ├── api_client.py      # entrega HTTP e retentativas
+│       ├── queue_store.py     # fila local persistente
+│       ├── pipeline.py        # orquestração
+│       └── main.py            # CLI / inicialização
+├── scripts/
+│   ├── calibrate_roi.py
+│   └── benchmark.py
+├── tests/
+│   ├── test_coordinates.py
+│   ├── test_roi.py
+│   ├── test_decoder.py
+│   ├── test_tracking.py
+│   ├── test_api_client.py
+│   └── test_pipeline.py
+└── docs/
+    ├── architecture.md
+    ├── hardware.md
+    └── benchmarks.md
+```
+
+A estrutura é uma **proposta inicial**, não uma obrigação de criar arquivos vazios. Adaptar à estrutura real do repositório, preservando responsabilidades claras.
+
+## 6. Instruções obrigatórias para agentes de código
+
+1. **Inspecione o repositório antes de alterar arquivos.** Leia o README, dependências, configuração, testes e decisões já implementadas. Não substitua módulos existentes apenas para seguir a árvore sugerida.
+2. **Trabalhe em incrementos pequenos e verificáveis.** Primeiro pipeline com imagem gravada; depois modelo; depois câmera e esteira; depois API.
+3. **Preserve a arquitetura híbrida.** Não treine uma rede para ler o conteúdo do Data Matrix; use decodificador próprio. Não acrescente segmentação por máscara sem justificativa técnica.
+4. **Priorize desempenho na Raspberry Pi 3.** Evite dependências de treinamento pesadas no dispositivo, cópias desnecessárias de frames e processamento em resolução integral fora da ROI.
+5. **Não acople hardware ao domínio.** Interfaces de câmera, GPIO, modelo de IA e API devem ter substitutos simulados para testes em PC.
+6. **Mantenha coordenadas explícitas.** Documente unidades, resolução de referência, transformações e convenção do centro da ROI.
+7. **Trate falhas como resultados esperados.** Sem produto, modelo desconhecido, baixa confiança, ROI inválida, Data Matrix ilegível, timeout de API e câmera desconectada devem ter estados claros.
+8. **Não invente integração de hardware.** Se não houver acesso à câmera, esteira, sensor ou modelo real, implemente mocks e explique precisamente o que ainda exige validação física.
+9. **Adicione testes para toda regra crítica.** Especialmente conversões de coordenadas, limites da ROI, ausência de duplicidade na contagem e retentativa de envio.
+10. **Não mude a stack sem motivação.** Preferência atual: treinamento SSCMA, inferência TFLite na Pi, OpenCV para ROI, ZXing-C++ para leitura e HTTP/JSON para API. Mudanças devem registrar motivo e impacto.
+11. **Não inclua segredos nem dados de produção reais** em código, logs, testes ou exemplos. Use `.env.example` ou variáveis de ambiente quando necessário.
+12. **Ao concluir uma alteração, informe** o que mudou, como executar, quais testes passaram, o que não foi testado e eventuais limitações de hardware.
+
+## 7. Testes e critérios de aceitação
+
+### Testes unitários mínimos
+
+- Conversão de coordenadas de inferência para resolução original, incluindo padding e redimensionamento não proporcional.
+- ROI correta para diferentes modelos e centros detectados.
+- Falha explícita em ROI fora do frame ou modelo desconhecido.
+- Decodificação de imagens de teste com Data Matrix válido e resultado de falha para imagem sem código.
+- Um único evento/contagem para múltiplos frames do mesmo produto.
+- Distinção entre produto contado, código lido e evento enviado.
+- Retentativa de envio sem gerar novo `event_id`.
+
+### Integração mínima
+
+- Rodar um pipeline de ponta a ponta com imagens gravadas e detector simulado (antes de usar modelo real).
+- Registrar logs estruturados por `event_id`/`capture_id`, evitando dados sensíveis desnecessários.
+- Demonstrar que uma API indisponível não bloqueia o processamento visual.
+- Testar a mesma lógica tanto no PC quanto na Raspberry Pi 3, quando o hardware estiver disponível.
+
+### Benchmark obrigatório na Raspberry Pi 3
+
+Medir, por produto:
+
+- Tempo de captura, pré-processamento, inferência, extração de ROI e decodificação.
+- Latência total e percentis **p50/p95**, além da vazão em produtos/minuto.
+- Uso máximo de RAM e consumo aproximado de CPU.
+- Taxa de detecção/classificação correta e taxa de **leitura correta de Data Matrix**.
+- Eventos perdidos, leituras falhas e registros duplicados.
+- Quantização e resolução de entrada efetivamente testadas.
+
+Não estabelecer metas de FPS, precisão ou consumo como fatos sem dados reais da esteira. Definir metas depois de medir velocidade, espaçamento e requisitos de produção.
+
+## 8. Plano de implementação
+
+### Fase 1 — Prova de conceito sem IA
+
+1. Capturar ou carregar imagens reais das placas.
+2. Definir ROI manual por modelo.
+3. Decodificar os Data Matrix com ZXing-C++.
+4. Medir qualidade e taxa de leitura sob iluminação e movimento reais.
+
+**Saída esperada:** leitor de Data Matrix confiável em imagens reais, independente da IA.
+
+### Fase 2 — Identificação automatizada
+
+1. Organizar dataset por modelo de placa.
+2. Treinar FOMO no SSCMA em PC, documentando divisão treino/validação/teste.
+3. Exportar e validar modelo com runtime TFLite compatível.
+4. Converter saídas de inferência para a imagem original.
+5. Selecionar ROI de acordo com o modelo identificado.
+
+**Saída esperada:** identificação + extração automática da ROI + leitura.
+
+### Fase 3 — Integração embarcada na esteira
+
+1. Integrar câmera e, se disponível, sensor de presença/trigger.
+2. Implementar máquina de estados de passagem e deduplicação.
+3. Registrar eventos localmente, inclusive falhas de leitura.
+4. Integrar fila e envio para API.
+5. Medir tempos e ajustar resolução, modelo e taxa de captura.
+
+**Saída esperada:** ciclo de inspeção completo na Raspberry Pi 3.
+
+### Fase 4 — Pesquisa e otimização
+
+Comparar o sistema com baselines de classificação simples e, se necessário, detecção com bounding boxes. Analisar trade-offs entre acurácia, taxa de leitura, latência, memória e consumo. Só introduzir métodos mais complexos após identificar limitações mensuráveis da solução inicial.
+
+## 9. Ordem de prioridade técnica
+
+1. **Legibilidade do Data Matrix na imagem original** (iluminação, foco, exposição, resolução).
+2. **Sincronização da captura e passagem física.**
+3. **ROI correta para cada modelo.**
+4. **Leitura e contagem sem perda ou duplicidade.**
+5. **Desempenho da inferência TinyML na Raspberry Pi 3.**
+6. **Entrega robusta à API.**
+
+Uma maior acurácia do detector não compensa um Data Matrix desfocado ou uma lógica que conta o mesmo produto várias vezes.
+
+## 10. Definição de pronto para o primeiro MVP
+
+Considerar o MVP concluído somente quando for possível:
+
+- Processar uma imagem ou captura real de placa.
+- Identificar o modelo com o detector integrado ou sinalizar falha explicitamente.
+- Selecionar automaticamente a ROI correta na resolução original.
+- Decodificar o Data Matrix ou informar falha sem dados fictícios.
+- Gerar exatamente um registro por passagem detectada.
+- Persistir e transmitir eventos para API, inclusive após indisponibilidade temporária da rede.
+- Reproduzir testes automatizados e apresentar resultados de benchmark na Raspberry Pi 3.
+
+**Princípio orientador:** começar simples, medir no hardware real e acrescentar complexidade somente quando houver uma limitação demonstrada.
