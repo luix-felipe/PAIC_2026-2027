@@ -7,138 +7,385 @@ samples:
 - image: 20261112_084042.jpg
   piece_id: piece_01
   face: unknown
-  frame_size: [4000, 3000]
-  box: [600, 65, 3500, 2920]
-  status: draft
+  frame_size:
+  - 4000
+  - 3000
+  box:
+  - 600
+  - 75
+  - 3494
+  - 2925
+  status: reviewed
+  datamatrix_roi_candidate:
+    box:
+    - 1015
+    - 1162
+    - 1129
+    - 1249
+    frame_size:
+    - 4000
+    - 3000
+    annotation_source: existing_manual_annotation
+    note: Marcação existente preservada; conferência do conteúdo esperado ainda pendente.
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084050.jpg
-  piece_id: null
+  piece_id: piece_01
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 229
+  - 1657
+  - 5980
+  - 7179
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084055.jpg
-  piece_id: null
+  piece_id: piece_01
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 280
+  - 1899
+  - 6031
+  - 7446
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084101.jpg
-  piece_id: null
+  piece_id: piece_01
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1275
+  - 6057
+  - 7548
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
 - image: 20261112_084324.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 153
+  - 1262
+  - 6057
+  - 7230
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084326.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 140
+  - 1338
+  - 6069
+  - 7357
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084333.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1224
+  - 6120
+  - 7357
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
+  - right
 - image: 20261112_084335.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1313
+  - 6108
+  - 7293
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
 - image: 20261112_084345.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 153
+  - 1198
+  - 6069
+  - 7179
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084348.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 242
+  - 1377
+  - 6082
+  - 7255
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084352.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1364
+  - 6108
+  - 7485
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
 - image: 20261112_084354.jpg
-  piece_id: null
+  piece_id: piece_02
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 63
+  - 1364
+  - 6120
+  - 7485
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact:
+  - right
 - image: 20261112_084419.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 51
+  - 994
+  - 5967
+  - 7459
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084421.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 51
+  - 1045
+  - 6006
+  - 7574
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084422.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 25
+  - 1020
+  - 6057
+  - 7650
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084428.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 140
+  - 1453
+  - 6031
+  - 6732
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084430.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 140
+  - 1491
+  - 6031
+  - 6758
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084431.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 178
+  - 1504
+  - 6108
+  - 6809
+  status: reviewed
+  side_id: side_A
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084440.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 51
+  - 765
+  - 6108
+  - 7485
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084441.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 63
+  - 752
+  - 6095
+  - 7485
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084442.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 76
+  - 752
+  - 6082
+  - 7472
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact: []
 - image: 20261112_084447.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1338
+  - 6120
+  - 6924
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
+  - right
 - image: 20261112_084448.jpg
-  piece_id: null
+  piece_id: piece_03
   face: unknown
-  frame_size: null
-  box: null
-  status: pending
+  frame_size:
+  - 6120
+  - 8160
+  box:
+  - 0
+  - 1338
+  - 6120
+  - 6924
+  status: reviewed
+  side_id: side_B
+  annotation_source: assistant_visual
+  edge_contact:
+  - left
+  - right
+pieces:
+  piece_01:
+    description: Painel azul
+    physical_specimens: 1
+  piece_02:
+    description: Placa verde
+    physical_specimens: 1
+  piece_03:
+    description: Painel preto
+    physical_specimens: 1
+catalog_notes:
+- Classe única motherboard; cada painel inteiro é uma unidade.
+- IDs físicos inferidos pela inspeção visual, consistentes com as três peças confirmadas
+  pelo usuário.
+- side_A/side_B distinguem faces visualmente; não afirmam qual é top ou bottom.
+- edge_contact sinaliza possível corte no enquadramento; a caixa cobre a extensão
+  visível.
+- Caixas e grupos conferidos visualmente pelo assistente em previews orientados; não
+  é revisão humana independente.

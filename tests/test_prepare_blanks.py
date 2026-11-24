@@ -1,4 +1,5 @@
 from copy import deepcopy
+import csv
 import struct
 
 import cv2
@@ -6,7 +7,7 @@ import numpy as np
 import pytest
 
 from scripts.prepare_blanks import (
-    annotate, initialize, load_frame, make_preview, piece_folds, read_yaml,
+    annotate, export_catalog, initialize, load_frame, make_preview, piece_folds, read_yaml,
     save_yaml, selection_to_original,
 )
 
@@ -114,6 +115,7 @@ def test_annotator_saves_reviewed_selection_with_mocked_gui(tmp_path, monkeypatc
     assert sample["piece_id"] == "piece_02"
     assert sample["face"] == "bottom"
     assert sample["box"] == [10, 10, 60, 70]
+    assert sample["annotation_source"] == "manual_gui"
 
 
 def test_annotator_cancel_keeps_previous_draft(tmp_path, monkeypatch):
@@ -161,3 +163,42 @@ def test_preview_marks_cropped_panel_as_rejected(tmp_path):
     assert report["variants"][0]["status"] == "VALID"
     assert report["variants"][1]["status"] == "REJECTED"
     assert "box" not in report["variants"][1]
+
+
+def test_catalog_exports_original_coordinates_and_preserves_annotations(tmp_path):
+    manifest = example_manifest(tmp_path, status="reviewed")
+    data = read_yaml(manifest)
+    data["samples"][0].update(side_id="side_A", edge_contact=["left"],
+                              annotation_source="assistant_visual")
+    data["samples"][0]["datamatrix_roi_candidate"] = {"box": [35, 25, 40, 30]}
+    save_yaml(manifest, data)
+    source_before = (tmp_path / "sample.png").read_bytes()
+    manifest_before = manifest.read_bytes()
+    target = tmp_path / "catalog"
+    summary = export_catalog(manifest, target)
+    assert summary == {"images": 1, "pieces": {"piece_01": 1},
+                       "statuses": {"reviewed": 1}, "sheets": 1}
+    with (target / "catalog.csv").open(encoding="utf-8-sig", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    assert len(rows) == 1
+    assert [int(rows[0][key]) for key in ("x0", "y0", "x1", "y1")] == [30, 20, 90, 70]
+    assert rows[0]["side_id"] == "side_A"
+    assert rows[0]["edge_contact"] == "left"
+    assert cv2.imread(str(target / "catalog-01.jpg")).shape == (1400, 1920, 3)
+    assert cv2.imread(str(target / "catalog-overview.jpg")).shape == (700, 960, 3)
+    assert (tmp_path / "sample.png").read_bytes() == source_before
+    assert manifest.read_bytes() == manifest_before
+
+
+def test_reannotation_preserves_datamatrix_candidate(tmp_path, monkeypatch):
+    manifest = example_manifest(tmp_path)
+    data = read_yaml(manifest)
+    candidate = {"box": [35, 25, 40, 30], "annotation_source": "existing_manual_annotation"}
+    data["samples"][0]["datamatrix_roi_candidate"] = candidate
+    save_yaml(manifest, data)
+    monkeypatch.setattr(cv2, "selectROI", lambda *a, **kw: (10, 10, 50, 60))
+    monkeypatch.setattr(cv2, "destroyAllWindows", lambda: None)
+    answers = iter(["piece_01", "unknown"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+    annotate(manifest)
+    assert read_yaml(manifest)["samples"][0]["datamatrix_roi_candidate"] == candidate

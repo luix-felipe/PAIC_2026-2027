@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import csv
 import json
 from pathlib import Path
 
@@ -112,7 +113,8 @@ def annotate(manifest_path, image=None, review=False):
         box = selection_to_original(rect, (display.shape[1], display.shape[0]), (width, height))
         piece = ask_choice("Peça física", PIECES, sample["piece_id"] or previous_piece)
         face = ask_choice("Face (pode permanecer unknown)", FACES, sample["face"])
-        sample.update(piece_id=piece, face=face, frame_size=[width, height], box=box, status="reviewed")
+        sample.update(piece_id=piece, face=face, frame_size=[width, height], box=box,
+                      status="reviewed", annotation_source="manual_gui")
         save_yaml(manifest_path, data)
         previous_piece = piece
         print(f"Salvo: {sample['image']} / {piece} / {box}")
@@ -137,6 +139,62 @@ def piece_folds(samples):
          "validation": [s["image"] for s in samples if s["piece_id"] == piece]}
         for piece in PIECES
     ]
+
+
+def export_catalog(manifest_path, output_dir):
+    """CSV e folhas de conferência derivados do manifesto, sem alterar fotos."""
+    data = read_yaml(manifest_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rows, sheets = [], []
+    for index, sample in enumerate(data["samples"]):
+        frame = load_frame(manifest_path, data, sample)
+        height, width = frame.shape[:2]
+        ratio = min(640 / width, 640 / height, 1.0)
+        thumb = cv2.resize(frame, (round(width * ratio), round(height * ratio)),
+                           interpolation=cv2.INTER_AREA)
+        box = sample.get("box")
+        if box is not None:
+            validate_box(box, (width, height))
+            factors = [thumb.shape[1]/width, thumb.shape[0]/height] * 2
+            scaled = np.asarray(box) * factors
+            x0, y0, x1, y1 = np.rint(scaled).astype(int)
+            cv2.rectangle(thumb, (x0, y0), (x1-1, y1-1), (0, 255, 0), 2)
+        if index % 6 == 0:
+            sheet = np.full((1400, 1920, 3), 245, dtype=np.uint8)
+            sheets.append(sheet)
+        x, y = (index % 3)*640, ((index % 6)//3)*700
+        sheet[y:y+thumb.shape[0], x:x+thumb.shape[1]] = thumb
+        label = f"{index+1:02} {Path(sample['image']).stem}"
+        detail = f"{sample['piece_id']} {sample.get('side_id', 'unknown')} [{sample['status']}]"
+        cv2.putText(sheet, label, (x+8, y+660), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (20, 20, 20), 1)
+        cv2.putText(sheet, detail, (x+8, y+687), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 20, 20), 1)
+        rows.append({
+            "image": sample["image"], "class": data["class_name"],
+            "piece_id": sample["piece_id"], "face": sample["face"],
+            "side_id": sample.get("side_id", "unknown"),
+            "width": width, "height": height,
+            **dict(zip(("x0", "y0", "x1", "y1"), box or [None]*4)),
+            "status": sample["status"],
+            "annotation_source": sample.get("annotation_source", "unknown"),
+            "edge_contact": ";".join(sample.get("edge_contact", [])),
+        })
+    if not rows:
+        raise ValueError("Catálogo vazio")
+    for index, sheet in enumerate(sheets, 1):
+        if not cv2.imwrite(str(output_dir / f"catalog-{index:02}.jpg"), sheet):
+            raise ValueError("Falha ao salvar folha de conferência")
+    overview = np.vstack([cv2.resize(sheet, (960, 700), interpolation=cv2.INTER_AREA)
+                          for sheet in sheets])
+    if not cv2.imwrite(str(output_dir / "catalog-overview.jpg"), overview):
+        raise ValueError("Falha ao salvar visão geral do catálogo")
+    with (output_dir / "catalog.csv").open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    summary = {"images": len(rows), "pieces": dict(Counter(row["piece_id"] for row in rows)),
+               "statuses": dict(Counter(row["status"] for row in rows)), "sheets": len(sheets)}
+    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
 
 
 def make_preview(manifest_path, policy_path, image, output, allow_draft=False):
@@ -208,6 +266,8 @@ def main():
     preview.add_argument("--allow-draft", action="store_true")
     folds = sub.add_parser("folds", help="Exporta grupos após revisão de todas as fotos")
     folds.add_argument("--output", type=Path, default=Path("artifacts/blanks-folds.json"))
+    catalog = sub.add_parser("catalog", help="Exporta CSV e folhas visuais do manifesto")
+    catalog.add_argument("--output", type=Path, default=Path("artifacts/catalog"))
     args = parser.parse_args()
     try:
         if args.command == "init":
@@ -224,6 +284,8 @@ def main():
             args.output.write_text(json.dumps({"purpose": "exploratory_grouped_validation",
                                               "folds": result}, indent=2), encoding="utf-8")
             print(f"Divisões: {args.output}")
+        elif args.command == "catalog":
+            print(export_catalog(args.manifest, args.output))
     except (ValueError, OSError, cv2.error) as error:
         parser.exit(1, f"Erro: {error}\n")
     except (KeyboardInterrupt, EOFError):

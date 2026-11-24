@@ -10,7 +10,43 @@ Esta etapa prepara anotações e demonstra transformações. Não treina modelos
 não cria milhares de cópias e não usa os resultados como medida de desempenho.
 O experimento de leitura de Data Matrix continua separado.
 
-## 1. Marcar manualmente
+## Catálogo atual
+
+As 23 fotos já foram catalogadas por inspeção visual do assistente, com uma
+caixa envolvendo a extensão visível do painel inteiro em cada foto:
+
+| Peça física | Descrição visual | side_A | side_B | Fotos |
+|---|---|---|---|---|
+| `piece_01` | Painel azul | 4 | 0 | 4 |
+| `piece_02` | Placa verde | 4 | 4 | 8 |
+| `piece_03` | Painel preto | 6 | 5 | 11 |
+
+`side_id` distingue as faces visualmente, sem afirmar qual é top ou bottom.
+Por isso, `face` permanece `unknown`. `annotation_source: assistant_visual`
+identifica a origem das marcações, e `status: reviewed` registra que as caixas
+foram conferidas nas folhas com sobreposição. Não é validação humana
+independente nem resultado de um detector treinado.
+
+Sete fotos têm `edge_contact`: o painel encosta em alguma borda e pode estar
+parcialmente cortado no enquadramento. Nesses casos a caixa cobre a parte
+visível; não inventamos limites de partes fora da imagem. Essas fotos precisam
+ser consideradas separadamente ao interpretar os centros e a robustez do modelo.
+
+A primeira marcação feita na interface envolvia somente o Data Matrix. Ela foi
+preservada em `datamatrix_roi_candidate`, enquanto `box` passou a representar o
+painel. A configuração de leitura `blanks_manual_rois.yaml` continua separada.
+
+Para gerar novamente o CSV e as folhas de conferência:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.prepare_blanks catalog
+```
+
+Saídas locais: `artifacts/catalog/catalog.csv`, `catalog-overview.jpg` e quatro
+folhas `catalog-01.jpg` a `catalog-04.jpg`. O manifesto versionável é
+`config/blanks_annotations.yaml`; os relatórios são derivados dele.
+
+## 1. Marcar ou corrigir manualmente
 
 Na raiz do workspace, execute:
 
@@ -34,22 +70,23 @@ continua nas fotos pendentes ou em rascunho. Para corrigir uma foto específica:
 .\.venv\Scripts\python.exe -m scripts.prepare_blanks annotate --image 20261112_084042.jpg
 ```
 
-O rascunho inicial dessa foto foi marcado visualmente pelo assistente apenas
-para demonstrar o processo. `piece_01` é seu identificador provisório, sem nome
-comercial de modelo. As outras 22 fotos começam sem caixa nem grupo atribuído.
-O rascunho precisa de revisão manual antes de participar das divisões.
+Como o catálogo atual já tem todas as fotos revisadas pelo assistente, use
+`--image` para corrigir uma foto ou `--review` para percorrer todas. A interface
+registra novas marcações como `annotation_source: manual_gui` e preserva a ROI
+candidata de Data Matrix já existente. Os IDs de peça não são nomes comerciais.
 
 ## 2. Ver as transformações
 
-Antes de revisar a primeira foto, podemos visualizar explicitamente o rascunho:
+Para visualizar as transformações da primeira foto catalogada:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.prepare_blanks preview --image 20261112_084042.jpg --allow-draft
+.\.venv\Scripts\python.exe -m scripts.prepare_blanks preview --image 20261112_084042.jpg
 ```
 
-Depois da revisão, o mesmo comando funciona sem `--allow-draft`. A saída
-`artifacts/augmentation-preview.jpg` mostra caixa verde e centro vermelho; o
-JSON ao lado registra parâmetros e matrizes para reproduzir cada transformação.
+A saída `artifacts/augmentation-preview.jpg` mostra caixa verde e centro
+vermelho; o JSON ao lado registra parâmetros e matrizes para reproduzir cada
+transformação. `--allow-draft` serve apenas para visualizar futuras marcações
+que ainda estejam em rascunho, sem aprová-las para as divisões.
 
 Comece lendo `scripts/augmentation.py` nesta ordem:
 
@@ -104,8 +141,8 @@ apresentar a validação como um teste final intocado.
 Os testes incluem alinhamento entre pixels e anotações, rotação, translação,
 escala, padding, recusa de cortes, preservação do original, geração reproduzível
 e ausência de vazamento entre grupos. A interação com o mouse é simulada nos
-testes; a revisão das caixas exige uso humano da janela. Raspberry Pi, câmera
-e treinamento permanecem sem validação.
+testes; a conferência deste catálogo foi feita pelo assistente nas folhas com
+sobreposição. Raspberry Pi, câmera e treinamento permanecem sem validação.
 
 Referências: [transformações geométricas do OpenCV](https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html),
 [selectROI](https://docs.opencv.org/4.x/d7/dfc/group__highgui.html),

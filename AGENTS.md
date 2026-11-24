@@ -14,9 +14,17 @@ O projeto combina **um modelo leve de visão computacional** com **processamento
 - A primeira plataforma embarcada será uma **Raspberry Pi 3**, sem presumir acelerador de IA externo.
 - O objetivo é identificar a placa, contar a passagem, ler o Data Matrix e transmitir o resultado para uma API.
 
+### Escopo do experimento atual
+
+- O projeto é uma iniciação científica para 2027. A implementação deve ser **o mais “na mão” possível**: explicar e escrever etapas pequenas, incluindo arquitetura da rede e laço de treinamento, usando frameworks para operações numéricas e diferenciação automática.
+- O primeiro detector terá **uma única classe visual, `motherboard`**, abrangendo os três modelos físicos de `Datasets/Blanks`. A unidade anotada é o **painel inteiro**, mesmo contendo várias placas.
+- Reconhecer o modelo físico específico não é requisito deste experimento. A arquitetura por modelo descrita adiante permanece como referência de evolução; não supor que uma classe única permite selecionar automaticamente uma ROI diferente para cada modelo.
+- Segundo o usuário, o Data Matrix equivalente é gravado em top e bottom; qualquer uma dessas gravações pode ser utilizada. Isso não garante que todo símbolo visível seja o código desejado: a conferência do conteúdo esperado continua pendente.
+- **O próximo incremento é o carregador de dados em PyTorch, a geração dos alvos por grade e sua visualização**, conforme a seção 11. A implementação da CNN e os treinamentos comparativos pertencem ao incremento seguinte.
+
 ### Variáveis ainda não definidas
 
-Velocidade da esteira, intervalo mínimo entre produtos, modelo exato da Raspberry Pi 3, tipo/resolução de câmera, iluminação, quantidade de modelos, dimensão física dos Data Matrix, interface do sensor de presença e contrato da API.
+Velocidade da esteira, intervalo mínimo entre produtos, modelo exato da Raspberry Pi 3, tipo/resolução de câmera, iluminação, quantidade de modelos no escopo final de produção, dimensão física dos Data Matrix, interface do sensor de presença e contrato da API. O acervo inicial de Blanks contém três modelos físicos.
 
 **Não inventar valores para essas variáveis.** Torná-las configuráveis; usar valores de exemplo apenas se forem identificados explicitamente como ilustrativos.
 
@@ -74,8 +82,9 @@ O termo “segmentação” usado no escopo do projeto refere-se inicialmente a 
 |---|---|---|
 | Plataforma | Raspberry Pi 3 | CPU, memória e taxa real devem ser medidas |
 | Linguagem da aplicação | Python | Prototipagem e integração; otimizar apenas com medição |
-| Treinamento de modelo | SSCMA | Executar em PC/servidor, não na Pi |
-| Modelo inicial | FOMO | Classe e centro aproximado; não retorna bounding box completa |
+| Treinamento de modelo | PyTorch com código próprio | Executar em PC/servidor; SSCMA como referência e comparação |
+| Modelo didático inicial | CNN pequena com saída por grade, inspirada em FOMO | Implementar após validar dados e alvos; não presumir equivalência ao FOMO do SSCMA |
+| Modelo de referência | FOMO com MobileNetV2 0.35 | Classe e centro aproximado; não retorna bounding box completa |
 | Alternativa de modelo | RTMDet compacto ou classificador leve | Avaliar quando FOMO não for suficiente |
 | Runtime embarcado | TensorFlow Lite / LiteRT | Confirmar compatibilidade da exportação do modelo escolhido |
 | Imagens e ROI | OpenCV + NumPy | Operações determinísticas |
@@ -85,6 +94,8 @@ O termo “segmentação” usado no escopo do projeto refere-se inicialmente a 
 | Testes | pytest | Mockar câmera, modelo, decodificador e rede |
 
 Não presumir que um modelo exportado pelo SSCMA rode na Raspberry Pi 3 sem conversão/validação. Registrar dependências, versões testadas, formato de entrada/saída, quantização e operações suportadas pelo runtime. O treinamento é feito fora do dispositivo; a Pi realiza **apenas inferência**.
+
+A adoção de um fluxo próprio em PyTorch foi solicitada pelo usuário para compreender e controlar arquitetura, dados, perda, otimização e avaliação. SSCMA permanece como referência técnica. Isso não altera o alvo de inferência TFLite/LiteRT, cuja conversão e compatibilidade ainda precisam ser demonstradas. Manter dependências de treinamento separadas das dependências do leitor e da aplicação embarcada; não instalar ferramentas de treinamento na Pi por conveniência.
 
 ## 4. Contratos entre módulos
 
@@ -110,6 +121,7 @@ Saída mínima: `model_id`, `confidence`, `center_x`, `center_y` e informações
 - Converter as coordenadas corretamente para o frame original, respeitando escala, crop, padding e *letterboxing*.
 - Se a confiança for insuficiente ou o modelo for desconhecido, registrar estado explícito; não inferir uma ROI arbitrária.
 - Caso um classificador substitua FOMO em uma estação com placa centralizada, documentar a hipótese de posicionamento fixo.
+- No experimento de classe única, distinguir `class_id` (`motherboard`) de `model_id` específico e de `piece_id` do dataset. **Não usar `piece_id` conhecido durante a anotação como se fosse uma identificação produzida na inferência.**
 
 ### 4.3 Localização da ROI
 
@@ -248,7 +260,7 @@ A estrutura é uma **proposta inicial**, não uma obrigação de criar arquivos 
 7. **Trate falhas como resultados esperados.** Sem produto, modelo desconhecido, baixa confiança, ROI inválida, Data Matrix ilegível, timeout de API e câmera desconectada devem ter estados claros.
 8. **Não invente integração de hardware.** Se não houver acesso à câmera, esteira, sensor ou modelo real, implemente mocks e explique precisamente o que ainda exige validação física.
 9. **Adicione testes para toda regra crítica.** Especialmente conversões de coordenadas, limites da ROI, ausência de duplicidade na contagem e retentativa de envio.
-10. **Não mude a stack sem motivação.** Preferência atual: treinamento SSCMA, inferência TFLite na Pi, OpenCV para ROI, ZXing-C++ para leitura e HTTP/JSON para API. Mudanças devem registrar motivo e impacto.
+10. **Não mude a stack sem motivação.** Preferência atual: treinamento próprio em PyTorch com SSCMA como referência, inferência TFLite na Pi, OpenCV para ROI, ZXing-C++ para leitura e HTTP/JSON para API. A motivação do fluxo próprio é a implementação didática solicitada pelo usuário. Outras mudanças devem registrar motivo e impacto.
 11. **Não inclua segredos nem dados de produção reais** em código, logs, testes ou exemplos. Use `.env.example` ou variáveis de ambiente quando necessário.
 12. **Ao concluir uma alteração, informe** o que mudou, como executar, quais testes passaram, o que não foi testado e eventuais limitações de hardware.
 
@@ -297,11 +309,12 @@ Não estabelecer metas de FPS, precisão ou consumo como fatos sem dados reais d
 
 ### Fase 2 — Identificação automatizada
 
-1. Organizar dataset por modelo de placa.
-2. Treinar FOMO no SSCMA em PC, documentando divisão treino/validação/teste.
-3. Exportar e validar modelo com runtime TFLite compatível.
-4. Converter saídas de inferência para a imagem original.
-5. Selecionar ROI de acordo com o modelo identificado.
+1. Preparar o dataset de classe única `motherboard`, mantendo peça física e face como metadados e separando os grupos antes da augmentation.
+2. Implementar e conferir o carregador de dados, as transformações e os alvos por grade, conforme a seção 11.
+3. Implementar a CNN didática e o laço de treinamento em PyTorch; começar com uma execução de verificação e depois comparar sem/com augmentation sob condições documentadas.
+4. Reproduzir FOMO/MobileNetV2 0.35 como referência, registrando diferenças de arquitetura, inicialização e treinamento. Não atribuir a um modelo próprio resultados de outro projeto.
+5. Exportar e validar o modelo com runtime TFLite compatível e converter corretamente as coordenadas para a imagem original.
+6. Avaliar a localização geométrica das ROIs nos três layouts. A estratégia automática com uma única classe ainda está em aberto; não inferir uma ROI arbitrária a partir do centro.
 
 **Saída esperada:** identificação + extração automática da ROI + leitura.
 
@@ -335,7 +348,7 @@ Uma maior acurácia do detector não compensa um Data Matrix desfocado ou uma l�
 Considerar o MVP concluído somente quando for possível:
 
 - Processar uma imagem ou captura real de placa.
-- Identificar o modelo com o detector integrado ou sinalizar falha explicitamente.
+- Reconhecer `motherboard` com o detector integrado ou sinalizar falha explicitamente; identificar o modelo físico específico quando essa tarefa fizer parte do escopo adotado.
 - Selecionar automaticamente a ROI correta na resolução original.
 - Decodificar o Data Matrix ou informar falha sem dados fictícios.
 - Gerar exatamente um registro por passagem detectada.
@@ -343,3 +356,45 @@ Considerar o MVP concluído somente quando for possível:
 - Reproduzir testes automatizados e apresentar resultados de benchmark na Raspberry Pi 3.
 
 **Princípio orientador:** começar simples, medir no hardware real e acrescentar complexidade somente quando houver uma limitação demonstrada.
+
+## 11. Próximo incremento — Dataset, alvos por grade e visualização
+
+### 11.1 Estado existente a preservar
+
+- `Datasets/Blanks` contém **23 fotos de três peças físicas**, uma de cada modelo: `piece_01` (azul, 4 fotos), `piece_02` (verde, 8 fotos) e `piece_03` (preta, 11 fotos). Fotos e versões aumentadas não constituem novas peças independentes.
+- A fonte das anotações é `config/blanks_annotations.yaml`. `box` representa a extensão visível do **painel inteiro**, em `[x0, y0, x1, y1]`, pixels do original orientado pelo EXIF e limites superiores exclusivos.
+- As 23 caixas foram conferidas visualmente pelo assistente, com `status: reviewed` e `annotation_source: assistant_visual`. Esse estado não representa uma revisão humana independente ou validação de um detector.
+- `piece_id` serve para agrupamento físico, não como classe de treinamento. `side_id` (`side_A`/`side_B`) distingue faces visualmente; `face` permanece `unknown` quando top/bottom não foi confirmado. Todas as faces da mesma peça pertencem ao mesmo grupo.
+- Sete fotos têm `edge_contact`, indicando possível corte no enquadramento. Preservar a indicação e explicitar sua inclusão ou exclusão no experimento; não inventar a extensão da placa fora do frame.
+- A marcação anterior do usuário na primeira foto foi preservada em `datamatrix_roi_candidate`. Não confundir essa ROI com a caixa de supervisão do painel, nem assumir que o conteúdo do código já foi validado.
+- Reutilizar `scripts/augmentation.py` para geometria e `scripts/prepare_blanks.py` para anotação, catálogo e divisões. Os relatórios em `artifacts/` são derivados e ignorados pelo Git; uma instalação nova deve conseguir regenerá-los a partir do manifesto, sem depender de arquivos locais ausentes.
+- `scripts/experiment_blanks.py` e `config/blanks_manual_rois.yaml` são o ensaio separado de leitura em quatro fotos, com leitura obtida em duas delas. Não há detector treinado nem benchmark na Pi 3.
+
+### 11.2 Entrega deste incremento
+
+Implementar um carregador de dados em PyTorch e uma visualização de amostras, sem antecipar a implementação completa da rede:
+
+1. Ler imagens e anotações do manifesto, validando arquivo, resolução orientada, caixa, estado de revisão e peça física. Carregar imagens sob demanda; evitar manter todos os frames de alta resolução na RAM.
+2. Consumir ou regenerar três divisões por peça: treinar em duas e validar na terceira. Preservar todas as fotos e faces de uma peça no mesmo grupo. Nenhuma versão aumentada pode atravessar a divisão.
+3. Aplicar resize com padding em uma cópia destinada ao detector. Tornar resolução de entrada, fator de redução da grade e parâmetros configuráveis; os 320 × 320 usados na visualização existente **não são uma resolução de treinamento já escolhida**.
+4. Aplicar augmentation somente no treino, com sementes controladas e parâmetros registrados. A validação recebe apenas o pré-processamento determinístico necessário à entrada. Comparações sem/com augmentation devem usar as mesmas divisões.
+5. Transformar caixa e centro com a mesma geometria da imagem e registrar as transformações original → entrada → imagem aumentada. Preservar a possibilidade de mapear coordenadas para o original. Gerar os alvos **depois** dessas transformações.
+6. Para o detector didático, gerar uma grade inteira: `0` para fundo e `1` na célula do centro de `motherboard`. Definir e documentar indexação `[linha_y, coluna_x]`, formato do tensor e regra de borda. Rejeitar dimensões incompatíveis com o fator da grade e centros inválidos; não corrigir erros de coordenadas por truncamento silencioso.
+7. Disponibilizar, por amostra, imagem de entrada, grade-alvo, caixa e centro transformados, `piece_id`, caminho de origem, flags de borda e metadados de transformação. Documentar canais, ordem dos eixos, dtype e normalização; não tratar imagens BGR do OpenCV como RGB por engano.
+8. Gerar uma visualização reproduzível com imagem, caixa, centro e grade esperada, incluindo exemplos de treino aumentado e validação determinística. Ela demonstra a preparação dos dados, não uma predição do modelo.
+
+Essa grade é **supervisão por centro para o modelo didático**, não uma máscara semântica do painel. A anotação com caixas não faz FOMO retornar dimensões de caixa. Documentar diferenças em relação aos alvos e à perda da implementação de referência no SSCMA.
+
+### 11.3 Critérios de aceitação
+
+- Um comando documentado carrega os dados do manifesto e gera as visualizações no PC, sem exigir câmera, GPIO, API ou um modelo treinado.
+- Testes verificam ausência de vazamento por peça, aplicação de augmentation somente ao treino, alinhamento entre imagem/caixa/centro/grade, padding e arredondamento, células nas bordas, falhas de entrada e reprodução com a mesma semente.
+- A visualização é conferida antes de usar os alvos em treinamento. Manter o leitor ZXing-C++ separado e a extração do Data Matrix na resolução original.
+- Não apresentar métricas de generalização a partir das 23 fotos como evidência sobre novas peças de produção. Com uma peça por modelo, a validação por peça também deixa um layout inteiro fora do treino. Não existe, neste acervo, um teste final independente representativo.
+- Registrar o que foi executado, versões de treinamento realmente testadas e limitações. Não presumir que a versão de Python do leitor seja compatível com todas as dependências de treinamento.
+
+### 11.4 Trabalho seguinte e frentes paralelas
+
+Após conferir o carregador e os alvos, implementar a CNN pequena, a perda e o laço de treinamento, iniciando por uma execução de verificação. Depois realizar a comparação sem/com augmentation e com FOMO/MobileNetV2 0.35. Fixar e registrar orçamento, sementes e critérios de avaliação; não copiar hiperparâmetros de artigos como se estivessem validados para este acervo.
+
+Em paralelo, coletar imagens sem motherboard para medir falsos positivos, obter outros exemplares físicos e investigar as falhas de Data Matrix nas imagens originais. O avanço do detector não substitui a validação da leitura, da contagem por passagem ou do desempenho no hardware.

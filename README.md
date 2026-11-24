@@ -8,6 +8,12 @@ consulte o [guia passo a passo](docs/first_augmentation.md). As 23 fotos são de
 três peças físicas; o novo manifesto mantém essa identificação separada da
 classe visual `motherboard`. Nenhum treinamento foi iniciado.
 
+As 23 caixas de painel já foram catalogadas e conferidas visualmente pelo
+assistente: 4 fotos da peça azul, 8 da verde e 11 da preta. Para exportar CSV e
+folhas de conferência, execute `python -m scripts.prepare_blanks catalog`.
+O catálogo preserva a marcação anterior do Data Matrix como ROI candidata e
+sinaliza contato com bordas em sete fotos.
+
 Decisões de escopo confirmadas:
 
 - Uma única classe visual: `motherboard`, incluindo os três modelos de Blanks.
