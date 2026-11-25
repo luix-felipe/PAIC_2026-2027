@@ -1,5 +1,12 @@
 # PAIC 2027 — Edge AI para inspeção de motherboards
 
+O estudo é conduzido por **mentoria guiada pelo chat**, com previsão, tentativa,
+verificação e interpretação em passos pequenos. O formato e o ponto de retomada
+estão na seção 12 do [AGENTS.md](AGENTS.md). A [trilha didática](docs/study_workflow.md)
+e a [preparação das ferramentas](docs/tools_setup.md) servem de apoio; os notebooks
+de aulas e laboratórios são materiais locais opcionais, ignorados pelo Git.
+Os exemplos e comandos devem ser adaptados à máquina em uso.
+
 Primeiro experimento: avaliar a leitura de Data Matrix nas fotos de
 `Datasets/Blanks`, antes de integrar o reconhecimento por IA.
 

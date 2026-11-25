@@ -398,3 +398,47 @@ Essa grade é **supervisão por centro para o modelo didático**, não uma másc
 Após conferir o carregador e os alvos, implementar a CNN pequena, a perda e o laço de treinamento, iniciando por uma execução de verificação. Depois realizar a comparação sem/com augmentation e com FOMO/MobileNetV2 0.35. Fixar e registrar orçamento, sementes e critérios de avaliação; não copiar hiperparâmetros de artigos como se estivessem validados para este acervo.
 
 Em paralelo, coletar imagens sem motherboard para medir falsos positivos, obter outros exemplares físicos e investigar as falhas de Data Matrix nas imagens originais. O avanço do detector não substitui a validação da leitura, da contagem por passagem ou do desempenho no hardware.
+
+## 12. Mentoria guiada pelo chat
+
+### 12.1 Formato de trabalho confirmado
+
+- O usuário escolheu **mentoria guiada pelo chat**, em passos pequenos, para compreender e implementar o projeto. Conduzir o estudo pela conversa; criar novas aulas, laboratórios ou geradores de notebooks somente quando solicitado.
+- Usar o repositório didático `luix-felipe/VC_iREDE` como referência de método: previsão, exemplo numérico, tentativa própria, verificação e interpretação. Adaptar o conteúdo ao escopo do PAIC; escolhas daquele repositório sobre defeitos, YOLO ou máscaras não alteram a arquitetura deste projeto.
+- A cada bloco, explicar o objetivo, a entrada, a saída e as unidades; apresentar uma operação pequena; pedir uma previsão ou tentativa; conferir o resultado com o usuário e então propor o passo seguinte. Não entregar uma sequência extensa de soluções quando o usuário estiver praticando uma etapa.
+- Explicar onde encontrar a ferramenta na documentação oficial e como executar a operação necessária. Relacionar cada parâmetro ao efeito esperado, incluindo um caso inválido quando isso ajudar a entender a regra.
+- Distinguir código existente, demonstração executada pelo assistente, exercício proposto e resultado efetivamente executado/interpretado pelo usuário. Uma pergunta ainda sem resposta não significa compreensão ou atividade concluída.
+- Os materiais locais em `notebooks/aulas/` e `notebooks/laboratorios/` ficam ignorados pelo Git. Podem ser consultados se disponíveis, mas a mentoria e a reprodução do projeto devem funcionar sem eles e sem os arquivos derivados de `artifacts/`.
+
+### 12.2 Independência da máquina
+
+- Apresentar exemplos com caminhos relativos à raiz do repositório, sem depender do nome de usuário, drive, pasta absoluta, IDE ou ambiente virtual desta sessão.
+- Antes de instruções de instalação ou execução, conferir o Python, o executável e as bibliotecas disponíveis na máquina em uso. Adaptar comandos ao sistema operacional; não presumir que versões ou ambientes de uma sessão anterior estejam presentes.
+- Preferir operações que possam ser executadas em um interpretador Python ou em um script pequeno, deixando o uso de notebook como opção. Explicar separadamente comandos de terminal e código Python. Se houver notebook, conferir também seu kernel.
+- Manter dependências e versões documentadas por finalidade: estudo no PC, leitor, futuro treinamento e inferência embarcada. Registrar o ambiente realmente testado sem tratá-lo como requisito universal ou compatibilidade já comprovada na Pi 3.
+- Manter decisões de escopo, sequência de estudo e ponto de retomada neste arquivo, de modo que outro agente ou uma nova máquina possam continuar sem depender de abas abertas ou arquivos locais ignorados.
+
+### 12.3 Sequência de estudo
+
+1. Representação de imagens e coordenadas: canais, eixos, dtype, ROI, caixa, centro e padding, retomando fundamentos quando necessário.
+2. Data augmentation e organização do dataset: alterações fotométricas e geométricas, divisão por peça, sementes e inspeção visual.
+3. Carregador PyTorch, transformação das anotações, alvos por grade e visualização, cumprindo a seção 11 antes de treinar.
+4. CNN didática, perda, autograd, otimização e laço próprio, começando por uma execução de verificação.
+5. Comparações sem/com augmentation e, depois, com FOMO/MobileNetV2 0.35, sob protocolo documentado.
+6. Localização validada da ROI e leitura no frame original, mantendo a investigação das falhas de Data Matrix em paralelo.
+7. Exportação, inferência e medições na Raspberry Pi 3; integração de passagem, persistência e API conforme as fases do projeto.
+
+Essa sequência organiza a mentoria; não substitui os critérios de aceitação nem implica que as etapas anteriores já tenham sido dominadas pelo usuário.
+
+### 12.4 Ponto de retomada da mentoria
+
+O usuário pediu para avançar para **data augmentation**. A introdução pelo chat apresentou:
+
+- Transformações fotométricas: brilho e contraste alteram intensidades; caixa e centro mantêm suas coordenadas.
+- Transformações geométricas: translação, rotação e escala exigem transformar imagem, caixa e centro juntos.
+- Augmentation somente no treino, depois da divisão por peça. Versões aumentadas continuam pertencendo à mesma peça física; validação recebe preparação determinística.
+- Primeiro exercício de brilho: array `np.array([0, 100, 250], dtype=np.uint8)` com deslocamento ilustrativo `15`. A operação é converter para `float32`, somar, aplicar `np.clip(..., 0, 255)` e converter de volta para `uint8`, conforme o núcleo de `scripts/augmentation.py`.
+
+**Ainda pendente:** o usuário prever os três valores de saída e explicar se o centro anotado muda com o brilho. O exercício foi proposto; sua execução e interpretação pelo usuário não foram confirmadas.
+
+Retomar por essa previsão ou pela dúvida que o usuário trouxer. Depois, comparar deslocamentos positivo e negativo e o efeito da saturação; avançar para contraste e, em seguida, translação, rotação e escala. Usar parâmetros ilustrativos até haver medições da captura real, preservar os originais e conferir o alinhamento das anotações antes de gerar os alvos por grade.

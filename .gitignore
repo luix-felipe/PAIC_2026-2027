@@ -1,4 +1,10 @@
 .venv/
+.venv-study/
+.venv-training/
+.ipynb_checkpoints/
+# Aulas e laboratórios locais; a mentoria é conduzida pelo chat.
+/notebooks/aulas/
+/notebooks/laboratorios/
 __pycache__/
 .pytest_cache/
 artifacts/

@@ -1,0 +1,6 @@
+# Somente PC: ambiente leve das primeiras aulas, independente do leitor e do treino.
+# Versões usadas na verificação dos notebooks; instalação limpa ainda não repetida.
+numpy==2.5.2
+opencv-python==5.0.0.93
+matplotlib==3.11.1
+ipykernel==7.3.0
